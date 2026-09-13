@@ -1,0 +1,2 @@
+Ola support teams target a first-response SLA of 15 minutes for P1, 1 hour for P2, 4 business hours for P3, and 1 business day for P4. Resolution targets are 4 hours for P1, 12 hours for P2, 2 business days for P3, and 5 business days for P4. If a ticket is waiting on customer documents, the resolution clock pauses until the customer replies. SLA breaches must be logged for weekly operations review.
+

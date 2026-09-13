@@ -1,0 +1,2 @@
+Customers may be contacted through the in-app chat first whenever that channel is available and active. Phone outreach is used for urgent trip-time issues, unresolved safety-adjacent problems, or when the customer has been inactive in chat for more than 15 minutes. Email is reserved for document collection, billing summaries, and post-resolution follow-up. Internal staff should keep all material ticket updates inside the support system so the case history remains auditable.
+

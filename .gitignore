@@ -1,0 +1,29 @@
+# Environment and secrets
+.env
+.venv/
+
+# Python cache and test artifacts
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Runtime / generated data
+outputs/
+work/
+Data/
+Evals/
+
+# Chroma / local vector database
+chroma_db/
+**/chroma_db/
+**/.chroma/
+
+# Python packaging metadata
+*.egg-info/
+
+# IDE / local workspace
+*.code-workspace
+
+# OS files
+.DS_Store
+Thumbs.db

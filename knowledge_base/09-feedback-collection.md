@@ -1,0 +1,2 @@
+After a ticket is resolved or closed, the system sends a short feedback request asking about clarity, timeliness, and whether the outcome solved the problem. Low feedback scores under 3 out of 5 enter a weekly review sheet for quality coaching. Free-text comments that mention rude behavior, safety concerns, or unresolved payments should create a follow-up task automatically. Feedback results are used for service improvement, not for instant punitive action.
+

@@ -1,0 +1,2 @@
+When a confirmed outage affects booking, payments, or driver availability, the incident lead publishes a single approved customer message and refreshes it at least every 30 minutes. Support agents should not speculate on root cause or restoration time if engineering has not confirmed it. The same wording should be used across chat, email macros, and internal status channels to avoid drift. Once the outage is resolved, a closing update should summarize the impact and next steps.
+

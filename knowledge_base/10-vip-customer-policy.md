@@ -1,0 +1,2 @@
+VIP customers include enterprise riders, high-frequency airport travelers, and strategic driver-partners flagged by account operations. Their tickets should receive queue prioritization, proactive updates every 30 minutes for active incidents, and supervisor visibility for unresolved P2 or higher issues. VIP status does not bypass fraud checks or safety protocols. Any manual compensation outside the standard band still needs approval.
+

@@ -1,0 +1,2 @@
+Ticket priority is assigned from the impact on trip completion, payment risk, and the number of customers affected. P1 is reserved for safety-adjacent support disruptions, full trip-booking outages, or payment failures affecting many users at once. P2 covers severe single-customer blockers such as account lockout during an active shift or repeated app crashes. P3 is used for standard defects or billing disputes that still have a workable manual fallback, while P4 handles informational requests and low-risk feedback.
+

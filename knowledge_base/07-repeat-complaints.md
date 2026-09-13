@@ -1,0 +1,2 @@
+When a customer reopens the same complaint within 7 days, the new ticket should be linked to the prior case and marked as a repeat complaint. Repeats require the next agent to review the original resolution notes before sending any new response. If the same root cause appears three times for one user in 30 days, the ticket should be escalated for pattern review. Agents should acknowledge the previous interaction so the customer does not have to restate the full issue.
+

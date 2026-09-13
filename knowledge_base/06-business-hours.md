@@ -1,0 +1,2 @@
+Standard support coverage runs from 6:00 AM to 11:00 PM local city time every day, with a reduced overnight queue for urgent issues. During listed public holidays, P1 and trust-and-safety queues continue at normal priority while routine P3 and P4 work may shift to the next business day. When holiday staffing changes SLA expectations, the customer should be told the revised response window explicitly. Teams must pin the holiday roster in the operations channel before the holiday begins.
+

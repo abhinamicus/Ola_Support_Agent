@@ -1,0 +1,2 @@
+Refunds are approved when the support record shows duplicate charges, failed services billed as completed, or agent-verified service breakdowns. Compensation in the form of service credits may be offered for delays, app-side booking failures, or poor communication when a cash refund is not appropriate. Agents must not promise a refund amount before checking the policy band for the specific incident type. Any exception beyond the policy table requires supervisor approval.
+

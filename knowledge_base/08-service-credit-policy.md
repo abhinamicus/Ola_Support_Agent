@@ -1,0 +1,2 @@
+Service credits are a goodwill option for non-cash remediation when the issue caused inconvenience but not a direct billable loss. Credits should match the approved incident band and normally expire after 90 days unless the campaign rules say otherwise. Credits must not be issued for suspected fraud, active chargebacks, or issues still under investigation. The final note should mention the credit amount, expiry, and the reason it was granted.
+

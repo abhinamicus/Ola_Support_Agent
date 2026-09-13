@@ -1,0 +1,13 @@
+autogen-agentchat
+autogen-ext
+chromadb
+crewai
+fastapi
+langchain-core
+langchain-community
+numpy
+pydantic
+python-dotenv
+sentence-transformers
+uvicorn
+websockets

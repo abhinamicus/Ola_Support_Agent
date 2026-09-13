@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ola-domain-support-agent"
+version = "0.1.0"
+description = "Production-minded Ola support agent capstone built with CrewAI, FastAPI, RAG, and governance controls."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+  "autogen-agentchat",
+  "chromadb",
+  "crewai",
+  "fastapi",
+  "langchain-community",
+  "langchain-core",
+  "pydantic>=2.0",
+  "sentence-transformers",
+  "uvicorn",
+]
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
+

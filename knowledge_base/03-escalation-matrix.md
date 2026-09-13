@@ -1,0 +1,2 @@
+Billing disputes above INR 2,500 escalate to the payments operations lead after the first verification pass. Driver app failures that block accepting trips escalate to the mobility platform incident manager when two or more reports arrive within 30 minutes. Security, harassment, or possible account takeover issues escalate immediately to the trust and safety queue. VIP customer complaints may also be escalated to a shift supervisor even when the monetary value is low.
+
