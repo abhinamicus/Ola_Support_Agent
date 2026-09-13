@@ -123,13 +123,15 @@ This system is **Medium risk**. It influences customer support operations and ti
 
 For zero-network execution in PowerShell:
 
-$env:HF_HUB_OFFLINE="1"
-$env:TRANSFORMERS_OFFLINE="1"
-$env:CREWAI_DISABLE_TELEMETRY="true"
-$env:PYTHONPATH=".;src"
+```powershell
+$env:HF_HUB_OFFLINE = "1"
+$env:TRANSFORMERS_OFFLINE = "1"
+$env:CREWAI_DISABLE_TELEMETRY = "true"
+$env:PYTHONPATH = ".;src"
 
 pytest -q
 python main.py
+```
 
 
 
