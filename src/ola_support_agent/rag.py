@@ -37,8 +37,9 @@ class RAGEngine:
         self.call_counter = 0
         self.cache: dict[str, GroundedAnswer] = {}
 
-        # Initial value used before empirical calibration.
-        self.threshold = 0.5
+        # None means retrieval is not ready until calibrated.
+        self.threshold: float | None = None
+        self.calibration_data = self.calibrate_threshold()
 
     def _index_chunks(self) -> None:
         for strategy, chunks in self.chunk_sets.items():
@@ -158,6 +159,11 @@ class RAGEngine:
         strategy: str = "sentence",
         top_k: int = 3,
     ) -> GroundedAnswer:
+        if self.threshold is None:
+            raise RuntimeError(
+                "RAG threshold has not been calibrated. "
+                "Call calibrate_threshold() before answering queries."
+            )
         normalized = " ".join(query.lower().split())
         cache_key = f"{strategy}|{top_k}|{normalized}"
 

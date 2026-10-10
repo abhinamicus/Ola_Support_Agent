@@ -42,7 +42,25 @@ uvicorn ola_support_agent.api:app --reload
 - every given status appears at least once
 - `escalated=True` lands between 10% and 30%
 
-The knowledge base contains 12 authored documents. The RAG layer implements fixed-size overlapping chunks and sentence chunks, then evaluates both strategies on a common query set. The grounded answer path refuses unsupported questions using an empirically calibrated threshold from in-scope and out-of-scope top-1 retrieval scores.
+### Retrieval Threshold Calibration
+
+The sentence-based collection produced the following top-1 similarity scores on the calibration queries:
+
+- In-scope: `0.578, 0.654, 0.758`
+- Out-of-scope: `0.328, 0.147`
+
+The threshold is the midpoint between the lowest in-scope score and highest out-of-scope score: `(0.578 + 0.328) / 2 = 0.453`. Queries scoring below this threshold receive a knowledge-base fallback. This threshold is specific to the current evaluation data and should be reassessed using a larger, representative query set before production use.
+
+### Chunking Evaluation and Recommendation
+
+Both strategies were evaluated on the same five queries using document-level precision and recall, with duplicate parent-document IDs removed.
+
+| Strategy | Mean precision | Mean recall |
+|---|---:|---:|
+| Fixed-size overlapping | 0.467 | 1.000 |
+| Sentence-based | 0.533 | 1.000 |
+
+**Recommendation:** Prefer sentence-based chunking as the initial choice. It improved mean precision by approximately 6.7 percentage points while maintaining full recall on this evaluation set. Because only five queries were evaluated, validate the result against a larger representative dataset before production use.
 
 ## Part 2
 

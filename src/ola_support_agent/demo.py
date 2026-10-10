@@ -17,7 +17,7 @@ def run_demo() -> dict:
     TRANSCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
     validate_dataset(SUPPORT_TICKETS)
     rag = RAGEngine()
-    threshold_data = rag.calibrate_threshold()
+    threshold_data = rag.calibration_data
     eval_rows = rag.evaluate_chunking(EVAL_QUERIES[:5])
     crew = OlaSupportCrew(rag)
 
