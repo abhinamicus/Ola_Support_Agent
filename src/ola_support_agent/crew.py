@@ -1,5 +1,6 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
+import json
 import os
 import re
 import time
@@ -16,11 +17,47 @@ from .rag import RAGEngine
 from .schemas import CrewResponse
 from .tickets import check_support_ticket_status
 
-from pydantic import PrivateAttr
+from pydantic import BaseModel, PrivateAttr
+from crewai.utilities.converter import Converter
 
 
 class BudgetExceededError(ValueError):
     pass
+
+
+
+class SchemaAwareConverter(Converter):
+    """Validate structured JSON already produced by the composer."""
+
+    def to_pydantic(self, current_attempt: int = 1) -> BaseModel:
+        decoder = json.JSONDecoder()
+
+        for match in re.finditer(r"\{", self.text):
+            try:
+                obj, _ = decoder.raw_decode(self.text[match.start():])
+            except json.JSONDecodeError:
+                continue
+
+            if not isinstance(obj, dict):
+                continue
+
+            required_fields = {
+                "trace_id",
+                "user_query",
+                "sanitized_query",
+                "answer",
+                "sources",
+                "lookup_result",
+                "grounded",
+            }
+
+            if required_fields.issubset(obj):
+                return self.model.model_validate(obj)
+
+        raise ValueError(
+            "Composer output did not contain a valid structured response."
+        )
+
 
 
 class RAGTool(BaseTool):
@@ -288,7 +325,8 @@ class OlaSupportCrew:
             ),
             agent=self.composer_agent,
             context=composer_context,
-            response_model=CrewResponse,
+            output_pydantic=CrewResponse,
+            converter_cls=SchemaAwareConverter,
         )
 
         tasks.append(composer_task)
@@ -395,30 +433,33 @@ class OlaSupportCrew:
 
             crew_result = crew.kickoff()
 
-            # CrewAI returns CrewOutput. Depending on the configured
-            # structured-output path, pydantic may already be available.
-            
-            if getattr(crew_result, "pydantic", None) is not None:
-                response = crew_result.pydantic
-            else:
-                raw = getattr(crew_result, "raw", str(crew_result))
-                try:
-                    response = CrewResponse.model_validate_json(str(raw))
-                except Exception:
-                    response = CrewResponse(
-                        trace_id=trace_id,
-                        user_query=query,
-                        sanitized_query=guard.sanitized_text,
-                        answer=(
-                            "I could not verify a grounded answer from the approved "
-                            "Ola support knowledge base."
-                        ),
-                        sources=[],
-                        grounded=False,
-                        guardrail_events=guard.events,
-                        review_applied=False,
-                    )
+            # Prefer CrewAI's structured Pydantic output.
+            candidate = getattr(crew_result, "pydantic", None)
 
+            # Fall back to the raw result if structured output is unavailable.
+            if candidate is None:
+                candidate = getattr(crew_result, "raw", str(crew_result))
+
+            # Validate at the application boundary, regardless of the output path.
+            try:
+                if isinstance(candidate, str):
+                    response = CrewResponse.model_validate_json(candidate)
+                else:
+                    response = CrewResponse.model_validate(candidate)
+            except Exception:
+                response = CrewResponse(
+                    trace_id=trace_id,
+                    user_query=query,
+                    sanitized_query=guard.sanitized_text,
+                    answer=(
+                        "I could not verify a grounded answer from the approved "
+                        "Ola support knowledge base."
+                    ),
+                    sources=[],
+                    grounded=False,
+                    guardrail_events=guard.events,
+                    review_applied=False,
+                )
             # Enforce application-owned identity fields after CrewAI output.
             response = response.model_copy(
                 update={

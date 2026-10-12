@@ -1,7 +1,9 @@
+from ola_support_agent.review import ReviewStage
 from dataset import SUPPORT_TICKETS, validate_dataset
 from ola_support_agent.crew import OlaSupportCrew
 from ola_support_agent.rag import RAGEngine
 from ola_support_agent.tickets import check_support_ticket_status
+
 
 
 def test_dataset_validation() -> None:
@@ -64,3 +66,30 @@ def test_prompt_injection_blocked() -> None:
     assert response.grounded is False
     assert "prompt_injection_detected" in response.guardrail_events    
     
+def test_review_stage_returns_structured_verdict() -> None:
+    stage = ReviewStage()
+
+    result = stage.review(
+        draft_answer="Your refund will be processed within 24 hours.",
+        retrieved_context="Refund requests are reviewed within 3 business days.",
+    )
+
+    assert result.approved is False
+    assert result.final_answer == (
+        "Refund requests are reviewed within 3 business days."
+    )
+    assert result.reason
+
+def test_review_stage_approves_supported_answer() -> None:
+    stage = ReviewStage()
+
+    result = stage.review(
+        draft_answer="Refund requests are reviewed within 3 business days.",
+        retrieved_context="Refund requests are reviewed within 3 business days.",
+    )
+
+    assert result.approved is True
+    assert result.final_answer == (
+        "Refund requests are reviewed within 3 business days."
+    )
+    assert result.reason

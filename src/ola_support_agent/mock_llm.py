@@ -7,6 +7,8 @@ from typing import Any
 from crewai.llms.base_llm import BaseLLM
 from pydantic import BaseModel
 
+from .schemas import CrewResponse
+
 
 class MockLLM(BaseLLM):
     """
@@ -38,12 +40,6 @@ class MockLLM(BaseLLM):
         from_agent: Any | None = None,
         response_model: type[BaseModel] | None = None,
     ) -> str | Any:
-        print(
-            ">>> MOCK CALL:",
-            "agent=", getattr(from_agent, "role", None),
-            "tools=", [getattr(t, "name", str(t)) for t in (tools or [])],
-            "response_model=", getattr(response_model, "__name__", None),
-        )
 
         text = self._messages_to_text(messages)
 
@@ -107,6 +103,12 @@ class MockLLM(BaseLLM):
         # ------------------------------------------------------------
         # Response Composer
         # ------------------------------------------------------------
+        if "response composer" in role and response_model is None:
+            return self._structured_response(
+                response_model=CrewResponse,
+                text=text,
+            )
+
         if response_model is not None:
             return self._structured_response(
                 response_model=response_model,
@@ -346,8 +348,17 @@ class MockLLM(BaseLLM):
                         )
                     )
 
-                if "record_id" in obj and "status" in obj:
+                if (
+                    isinstance(obj.get("record_id"), str)
+                    and isinstance(obj.get("status"), str)
+                    and isinstance(obj.get("resolution_time_hours"), (int, float))
+                    and not isinstance(obj.get("resolution_time_hours"), bool)
+                    and isinstance(obj.get("escalation_score"), (int, float))
+                    and not isinstance(obj.get("escalation_score"), bool)
+                    and isinstance(obj.get("recommend_escalation"), bool)
+                ):
                     lookup_result = obj
+
 
             # ------------------------------------------------------------
             # Lookup responses should also be grounded.
@@ -381,7 +392,51 @@ class MockLLM(BaseLLM):
             }
 
             return response_model.model_validate(payload).model_dump_json()
+        # ================================================================
+        # REVIEW VERDICT
+        # ================================================================
+        if response_model.__name__ == "ReviewVerdict":
+            draft_match = re.search(
+                r"DRAFT ANSWER:\s*(.+?)(?:\n\nRETRIEVED CONTEXT:|$)",
+                text,
+                flags=re.DOTALL | re.IGNORECASE,
+            )
+            context_match = re.search(
+                r"RETRIEVED CONTEXT:\s*(.+?)(?:\n\nDetermine whether|$)",
+                text,
+                flags=re.DOTALL | re.IGNORECASE,
+            )
 
+            draft = draft_match.group(1).strip() if draft_match else ""
+            context = context_match.group(1).strip() if context_match else ""
+
+            approved = bool(
+                draft
+                and context
+                and draft.casefold() in context.casefold()
+            )
+
+            if approved:
+                final_answer = draft
+                reason = "The draft is directly supported by the retrieved context."
+            else:
+                final_answer = (
+                    context[:450]
+                    if context
+                    else "I don't know based on the approved knowledge base."
+                )
+                reason = (
+                    "The draft is not directly supported by the retrieved context; "
+                    "the answer was constrained to retrieved context."
+                )
+
+            return response_model.model_validate(
+                {
+                    "approved": approved,
+                    "final_answer": final_answer,
+                    "reason": reason,
+                }
+            )
         # ================================================================
         # GENERIC STRUCTURED RESPONSE FALLBACK
         # ================================================================

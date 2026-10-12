@@ -5,7 +5,9 @@ import asyncio
 from autogen_agentchat.agents import AssistantAgent
 from autogen_agentchat.conditions import MaxMessageTermination
 from autogen_agentchat.teams import RoundRobinGroupChat
+from autogen_agentchat.messages import StructuredMessage
 from autogen_core import CancellationToken
+from pydantic import BaseModel
 from autogen_core.models import ChatCompletionClient, CreateResult, RequestUsage
 
 from .mock_llm import MockLLM
@@ -50,6 +52,7 @@ class ReviewStage:
                 "Approve only if the answer is supported by the context. "
                 "If unsupported, explain what must be revised."
             ),
+            output_content_type=ReviewVerdict,
         )
 
         reviser = AssistantAgent(
@@ -78,92 +81,28 @@ class ReviewStage:
             participants=[reviewer, reviser],
             termination_condition=termination,
             max_turns=2,
+            custom_message_types=[StructuredMessage[ReviewVerdict]],
         )
 
         result = asyncio.run(team.run(task=task))
 
-        return self._to_verdict(
-            result=result,
-            draft_answer=draft_answer,
-            retrieved_context=retrieved_context,
-        )
+        return self._extract_structured_verdict(result)
 
     @staticmethod
-    def _to_verdict(
-        *,
-        result,
-        draft_answer: str,
-        retrieved_context: str,
-    ) -> ReviewVerdict:
-        """
-        Convert the bounded AutoGen conversation into the application's
-        Pydantic verdict schema.
-        """
-        messages = getattr(result, "messages", [])
+    def _extract_structured_verdict(result) -> ReviewVerdict:
+        """Return the ReviewVerdict emitted by AutoGen's structured reviewer."""
+        for message in reversed(getattr(result, "messages", [])):
+            if isinstance(message, StructuredMessage):
+                content = message.content
 
-        text_parts: list[str] = []
+                if isinstance(content, ReviewVerdict):
+                    return content
 
-        for message in messages:
-            content = getattr(message, "content", None)
+                return ReviewVerdict.model_validate(content)
 
-            if isinstance(content, str):
-                text_parts.append(content)
-
-            elif isinstance(content, list):
-                for item in content:
-                    if isinstance(item, str):
-                        text_parts.append(item)
-                    elif hasattr(item, "text"):
-                        text_parts.append(str(item.text))
-
-        conversation = "\n".join(text_parts)
-
-        normalized_draft = draft_answer.strip()
-        normalized_context = retrieved_context.strip()
-
-        if (
-            normalized_draft
-            and normalized_context
-            and normalized_draft in normalized_context
-        ):
-            return ReviewVerdict(
-                approved=True,
-                final_answer=draft_answer,
-                reason="AutoGen reviewer found the draft directly supported by retrieved context.",
-            )
-
-        # If the AutoGen conversation contains an explicit final answer,
-        # use it only when it is grounded in the retrieved context.
-        for candidate in reversed(text_parts):
-            candidate = candidate.strip()
-
-            if (
-                candidate
-                and candidate != normalized_draft
-                and candidate in normalized_context
-            ):
-                return ReviewVerdict(
-                    approved=False,
-                    final_answer=candidate,
-                    reason="AutoGen reviewer identified unsupported draft content and produced a grounded revision.",
-                )
-
-        # Safe deterministic fallback inside the approved review boundary.
-        revised = (
-            normalized_context[:450]
-            if normalized_context
-            else "I don't know based on the approved knowledge base."
+        raise ValueError(
+            "AutoGen review completed without a structured ReviewVerdict."
         )
-
-        return ReviewVerdict(
-            approved=False,
-            final_answer=revised,
-            reason=(
-                "AutoGen review completed, but the draft could not be verified "
-                "as grounded; the response was constrained to retrieved context."
-            ),
-        )
-
 
 class _MockChatCompletionClient(ChatCompletionClient):
     """
@@ -210,7 +149,20 @@ class _MockChatCompletionClient(ChatCompletionClient):
 
         prompt = "\n".join(prompt_parts)
 
-        response = self.mock_llm.call(prompt)
+        response_model = None
+
+        if json_output is not None:
+            response_model = ReviewVerdict
+
+        response = self.mock_llm.call(
+            prompt,
+            response_model=response_model,
+        )
+
+        if isinstance(response, BaseModel):
+            response = response.model_dump_json()
+        elif not isinstance(response, str):
+            response = str(response)
 
         from autogen_core.models import CreateResult
 
