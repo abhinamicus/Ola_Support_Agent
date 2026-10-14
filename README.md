@@ -62,6 +62,14 @@ Both strategies were evaluated on the same five queries using document-level pre
 
 **Recommendation:** Prefer sentence-based chunking as the initial choice. It improved mean precision by approximately 6.7 percentage points while maintaining full recall on this evaluation set. Because only five queries were evaluated, validate the result against a larger representative dataset before production use.
 
+### Relevance-aware answer composition
+
+In `MOCK_LLM` mode, answer composition uses a provisional score-gap heuristic. When the top retrieved chunk scores at least **0.15 higher** than the second chunk, only the top chunk is used to compose the answer. Otherwise, the first two chunks are used.
+
+This reduces irrelevant context in cases where the top result clearly dominates while retaining multi-chunk context for queries such as P1/P2 SLA questions.
+
+**Limitation:** Embedding similarity scores are not definitive measures of semantic relevance. The 0.15 cutoff is a heuristic validated against a limited set of examples, not a general relevance classifier. Broader evaluation is needed before production use.
+
 ## Part 2
 
 `check_support_ticket_status(record_id)` returns `status`, `resolution_time_hours`, and an escalation score:

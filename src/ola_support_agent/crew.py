@@ -231,6 +231,34 @@ class OlaSupportCrew:
             flags=re.IGNORECASE,
         ) is not None
 
+    @staticmethod
+    def _needs_support_knowledge(query: str) -> bool:
+        """Identify requests that need support-policy retrieval."""
+        lowered = query.lower()
+
+        knowledge_indicators = (
+            "policy",
+            "procedure",
+            "protocol",
+            "sla",
+            "first response",
+            "escalat",
+            "refund",
+            "compensation",
+            "public holiday",
+            "business hours",
+            "retention",
+            "retain",
+            "vip",
+            "repeat complaint",
+            "service credit",
+            "communication channel",
+            "feedback",
+            "knowledge base",
+        )
+
+        return any(term in lowered for term in knowledge_indicators)
+
     def _memory_answer(
         self,
         query: str,
@@ -274,27 +302,34 @@ class OlaSupportCrew:
         query: str,
         session_id: str,
     ) -> Crew:
-        retrieval_task = Task(
-            name="retrieve_support_context",
-            description=(
-                "Retrieve approved support knowledge for this user query:\n"
-                f"{query}"
-            ),
-            expected_output=(
-                "The JSON result returned by the retrieval tool, including "
-                "groundedness, retrieved chunks and matched documents."
-            ),
-            agent=self.retrieval_agent,
+        has_ticket_id = self._contains_ticket_id(query)
+        needs_knowledge = (
+            not has_ticket_id or self._needs_support_knowledge(query)
         )
 
-        tasks = [retrieval_task]
+        tasks = []
 
-        if self._contains_ticket_id(query):
+        if needs_knowledge:
+            retrieval_task = Task(
+                name="retrieve_support_context",
+                description=(
+                    "Retrieve approved support knowledge for this user query:\n"
+                    f"{query}"
+                ),
+                expected_output=(
+                    "The JSON result returned by the retrieval tool, including "
+                    "groundedness, retrieved chunks and matched documents."
+                ),
+                agent=self.retrieval_agent,
+            )
+            tasks.append(retrieval_task)
+
+        if has_ticket_id:
             lookup_task = Task(
                 name="lookup_support_ticket",
                 description=(
-                    "If the user query contains a ticket ID, use the ticket "
-                    "lookup tool to retrieve the ticket facts.\n\n"
+                    "Use the ticket lookup tool to retrieve factual ticket "
+                    "information for the supplied ticket ID.\n\n"
                     f"User query: {query}"
                 ),
                 expected_output=(
@@ -302,21 +337,25 @@ class OlaSupportCrew:
                     "tool."
                 ),
                 agent=self.lookup_agent,
-                context=[retrieval_task],
             )
-            tasks.append(lookup_task)
 
-        composer_context = tasks.copy()
+            if needs_knowledge:
+                lookup_task.context = [retrieval_task]
+
+            tasks.append(lookup_task)
 
         composer_task = Task(
             name="compose_support_response",
             description=(
-                "Compose the final answer to this support request using "
-                "only the preceding agent results.\n\n"
+                "Compose the final answer using only the preceding agent "
+                "results. Address the user's actual request.\n\n"
                 f"User query: {query}\n"
                 f"Session: {session_id}\n\n"
-                "Do not invent facts. If the retrieval result is not "
-                "grounded, clearly say that the approved knowledge base "
+                "For ticket-only requests, use the ticket lookup result and "
+                "do not require policy retrieval. For requests needing support "
+                "knowledge, use the retrieval result. For mixed requests, use "
+                "both results. Do not invent facts. If required knowledge is "
+                "not grounded, clearly say that the approved knowledge base "
                 "does not contain the answer."
             ),
             expected_output=(
@@ -324,7 +363,7 @@ class OlaSupportCrew:
                 "provided agent results."
             ),
             agent=self.composer_agent,
-            context=composer_context,
+            context=tasks.copy(),
             output_pydantic=CrewResponse,
             converter_cls=SchemaAwareConverter,
         )

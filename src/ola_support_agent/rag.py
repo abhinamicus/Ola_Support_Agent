@@ -117,17 +117,29 @@ class RAGEngine:
             )
 
         return retrieved
-
     def calibrate_threshold(self) -> dict[str, list[float] | float]:
         in_scope = [
             "What is the first-response SLA for P1 tickets?",
             "When should a billing dispute be escalated?",
             "How long are support tickets retained?",
+            "What happens to support on public holidays?",
+            "What is the outage communication protocol?",
+            "When can refunds or compensation be offered?",
+            "How are VIP customers handled?",
+            "How are repeat complaints handled?",
+            "When are service credits appropriate?",
+            "Which customer communication channel should agents use first?",
+            "How is feedback collected after ticket closure?",
+            "Can agents share ticket exports broadly?",
         ]
 
         out_of_scope = [
             "What is Ola's maternity leave policy?",
             "Who won the IPL final?",
+            "What is Ola's office dress code?",
+            "What is the cafeteria menu this week?",
+            "What is the weather forecast for tomorrow?",
+            "Explain how to bake a chocolate cake.",
         ]
 
         in_scores = [
@@ -140,10 +152,20 @@ class RAGEngine:
             for query in out_of_scope
         ]
 
-        # Do not blindly use this value.
-        # We will inspect the two distributions and choose the threshold.
+        # Choose a provisional threshold only when the observed score
+        # distributions have a gap between in-scope and out-of-scope queries.
+        highest_out_score = max(out_scores)
+        lowest_in_score = min(in_scores)
+
+        if highest_out_score >= lowest_in_score:
+            raise ValueError(
+                "Calibration scores overlap. A single threshold cannot "
+                "separate these examples reliably; inspect the scores "
+                "and improve retrieval or add a relevance classifier."
+            )
+
         self.threshold = round(
-            (min(in_scores) + max(out_scores)) / 2,
+            (highest_out_score + lowest_in_score) / 2,
             3,
         )
 
@@ -219,10 +241,19 @@ class RAGEngine:
             self.cache[cache_key] = result
             return result
 
-        # In MOCK_LLM mode, compose a deterministic answer from retrieved context.
-        # The answer is restricted to text returned by the retriever.
+        # In MOCK_LLM mode, prefer the strongest chunk when it clearly
+        # outranks the next result. Otherwise, retain two chunks so that
+        # questions requiring multiple sources can still be answered.
+        if len(retrieved) >= 2:
+            score_gap = retrieved[0]["score"] - retrieved[1]["score"]
+            supporting_chunks = (
+                retrieved[:1] if score_gap >= 0.15 else retrieved[:2]
+            )
+        else:
+            supporting_chunks = retrieved
+
         supporting_text = " ".join(
-            item["text"] for item in retrieved[:2]
+            item["text"] for item in supporting_chunks
         )
 
         result = GroundedAnswer(

@@ -43,6 +43,30 @@ def test_rag_fallback() -> None:
     result = rag.grounded_answer("Who won the FIFA world cup?")
     assert result.grounded is False
 
+def test_public_holiday_question_retrieves_relevant_policy() -> None:
+    rag = RAGEngine()
+    result = rag.grounded_answer(
+        "What happens to support on public holidays?"
+    )
+
+    assert result.grounded is True
+    assert any(
+        chunk.document_id == "06-business-hours"
+        for chunk in result.retrieved_chunks
+    )
+
+
+def test_outage_question_retrieves_relevant_policy() -> None:
+    rag = RAGEngine()
+    result = rag.grounded_answer(
+        "What is the outage communication protocol?"
+    )
+
+    assert result.grounded is True
+    assert any(
+        chunk.document_id == "11-outage-communication"
+        for chunk in result.retrieved_chunks
+    )
 
 def test_guardrails_and_cache() -> None:
     crew = OlaSupportCrew()
@@ -93,3 +117,85 @@ def test_review_stage_approves_supported_answer() -> None:
         "Refund requests are reviewed within 3 business days."
     )
     assert result.reason
+
+def test_ticket_only_request_skips_rag_retrieval() -> None:
+    crew = OlaSupportCrew()
+
+    result = crew._build_crew(
+        "Check ticket OLA-0001 and tell me the status.",
+        session_id="ticket-only-routing",
+    )
+
+    task_names = [task.name for task in result.tasks]
+
+    assert task_names == [
+        "lookup_support_ticket",
+        "compose_support_response",
+    ]
+
+
+def test_policy_request_uses_rag_retrieval() -> None:
+    crew = OlaSupportCrew()
+
+    result = crew._build_crew(
+        "What happens to support on public holidays?",
+        session_id="policy-routing",
+    )
+
+    task_names = [task.name for task in result.tasks]
+
+    assert task_names == [
+        "retrieve_support_context",
+        "compose_support_response",
+    ]
+
+
+def test_mixed_request_uses_retrieval_and_ticket_lookup() -> None:
+    crew = OlaSupportCrew()
+
+    result = crew._build_crew(
+        "Check OLA-0001 and explain the escalation policy.",
+        session_id="mixed-routing",
+    )
+
+    task_names = [task.name for task in result.tasks]
+
+    assert task_names == [
+        "retrieve_support_context",
+        "lookup_support_ticket",
+        "compose_support_response",
+    ]
+def test_priority_answer_excludes_unrelated_vip_context() -> None:
+    crew = OlaSupportCrew()
+
+    response = crew.kickoff(
+        "How is ticket priority classified?",
+        session_id="priority-relevance",
+    )
+
+    assert response.grounded is True
+    assert "impact on trip completion" in response.answer.lower()
+    assert "vip" not in response.answer.lower()
+
+def test_rag_priority_answer_excludes_vip_policy() -> None:
+    rag = RAGEngine()
+
+    result = rag.grounded_answer(
+        "How is ticket priority classified?"
+    )
+
+    assert result.grounded is True
+    assert "impact on trip completion" in result.answer.lower()
+    assert "vip" not in result.answer.lower()
+    assert "proactive updates every 30 minutes" not in result.answer.lower()
+
+def test_sla_answer_preserves_p1_and_p2_targets() -> None:
+    rag = RAGEngine()
+
+    result = rag.grounded_answer(
+        "What is the SLA for P1 and P2 tickets?"
+    )
+
+    assert result.grounded is True
+    assert "15 minutes for P1" in result.answer
+    assert "1 hour for P2" in result.answer
